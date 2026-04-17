@@ -48,6 +48,7 @@
   <h2>🌀 Signals</h2>
   <div id="signals"></div>
 </div>
+<script>
 fetch('content/products.json')
   .then(res => res.json())
   .then(data => {
@@ -60,12 +61,12 @@ fetch('content/products.json')
         <p><strong>Brand:</strong> ${product.brand}</p>
         <p><strong>Price:</strong> ${product.price}</p>
         <p>${product.description}</p>
-        ${product.link? `<p><a href="${product.link}" target="_blank" style="color:#7dd3fc;">View Product</a></p>` : ''}
+        ${product.link ? `<p><a href="${product.link}" target="_blank" style="color:#7dd3fc;">View Product</a></p>` : ''}
       `;
       container.appendChild(div);
     });
   });
-<script>
+
 fetch('content/signals.json')
   .then(res => res.json())
   .then(data => {
@@ -73,11 +74,11 @@ fetch('content/signals.json')
     data.forEach(signal => {
       const div = document.createElement('div');
       div.className = 'signal';
-      div.innerHTML = `<h3>${signal.title}</h3><p>${signal.content}</p>`;
+      div.innerHTML = `
+        <h3>${signal.title}</h3>
+        <p>${signal.content}</p>
+      `;
       container.appendChild(div);
     });
   });
 </script>
-
-</body>
-</html>
