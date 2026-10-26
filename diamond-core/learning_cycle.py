@@ -165,6 +165,95 @@ def demo_inputs():
     return plan, selected
 
 
+def prepare_single_review(plan, selected):
+    """Use existing extraction, then retain only explicitly reviewed exact spans.
+
+    One message can motivate a hypothesis, never cross-source corroboration.
+    Source instructions cannot supply or alter this operator-owned plan.
+    """
+    fields = {'schema', 'input_kind', 'reviewed_at', 'projects', 'reviewer',
+              'instruction_ref', 'evidence_spans', 'review', 'feedback'}
+    if not isinstance(plan, dict) or set(plan) != fields or plan['schema'] != 'diamond.single-review/1':
+        raise ValueError('Exact diamond.single-review/1 plan required')
+    if not isinstance(selected, dict) or set(selected) != {'source', 'approval'}:
+        raise ValueError('One explicitly selected source envelope required')
+    # Reuse the established plan and feedback validation, without asserting synthesis.
+    review = plan['review']
+    if not isinstance(review, dict) or set(review) != {'hypothesis', 'challenge', 'application'}:
+        raise ValueError('Hypothesis, challenge and application required')
+    validate_plan({k: plan[k] for k in ('input_kind', 'reviewed_at', 'projects', 'reviewer',
+                                      'instruction_ref', 'feedback')} | {
+        'schema': 'diamond.cycle/1', 'synthesis': {'relation': 'analogy',
+        'hypothesis': review['hypothesis'], 'challenge': review['challenge'], 'next_step': review['application']}})
+    envelope = extract_envelope(selected['source'], selected['approval'], plan['reviewer'],
+                                plan['reviewed_at'], plan['projects'])
+    spans, ideas = [], []
+    if not isinstance(plan['evidence_spans'], list) or not 1 <= len(plan['evidence_spans']) <= 3:
+        raise ValueError('Select one to three exact evidence spans')
+    content = selected['source']['content']
+    for span in plan['evidence_spans']:
+        if (not isinstance(span, dict) or set(span) != {'start', 'end'}
+                or type(span['start']) is not int or type(span['end']) is not int
+                or not 0 <= span['start'] < span['end'] <= len(content)
+                or span['end'] - span['start'] > 240):
+            raise ValueError('Bounded source character offsets required')
+        excerpt = content[span['start']:span['end']]
+        if not excerpt.strip() or any(span['start'] < old['end'] and old['start'] < span['end'] for old in spans):
+            raise ValueError('Select distinct nonempty evidence spans')
+        spans.append(dict(span, excerpt_hash=digest(excerpt)))
+        ideas.append({'statement': 'Source excerpt (unverified): ' + excerpt,
+                      'kind': 'provisional_interpretation', 'evidence_state': 'UNRESOLVED',
+                      'excerpt': excerpt, 'locator': f"characters:{span['start']}:{span['end']}"})
+    envelope['source']['evidence_spans'] = spans
+    envelope['source']['extraction_method'] = 'bounded-extractive-lines/2 + operator-selected-character-spans/1'
+    envelope['analysis']['ideas'] = ideas
+    envelope['analysis']['discovery'].update(
+        connection=review['hypothesis'], challenge=review['challenge'], next_step=review['application'],
+        support='Selected exact source spans support attribution only; no linked article or claim independently verified.')
+    envelope['analysis']['dissent'] = [review['challenge']]
+    return envelope
+
+
+def run_single_review(plan, selected, store):
+    envelope = prepare_single_review(plan, selected)
+    store = private_directory(store)
+    cycle_id = digest({'plan': plan, 'selected': selected})
+    with store_lock(store / 'cycles'):
+        receipt = store / 'cycles' / (cycle_id + '.json')
+        if receipt.exists():
+            report = read_json(receipt)
+            if report.get('cycle_id') != cycle_id or report.get('canonical') is not False:
+                raise ValueError('Invalid single-review receipt')
+            report.update(receipt_replayed=True, status=status(store))
+            return report
+        packet, result, _ = submit_envelope(envelope, store)
+        _, replay, _ = submit_envelope(envelope, store)
+        feedback, _ = record_feedback(packet['packet_hash'], plan['feedback']['decision'],
+                                      plan['feedback']['note'], plan['reviewer'],
+                                      plan['instruction_ref'], plan['reviewed_at'], store)
+        report = {'cycle_id': cycle_id, 'input_kind': plan['input_kind'], 'source_count': 1,
+                  'input_provenance': 'operator-declared; not independently verified',
+                  'independent_verification_established': False,
+                  'result': result, 'duplicate_replay': replay, 'packet_hash': packet['packet_hash'],
+                  'feedback_hash': feedback['event_hash'], 'canonical': False, 'review_required': True,
+                  'synthesis': 'not_performed_single_source', 'receipt_replayed': False,
+                  'report_file': 'review_' + cycle_id + '.json', 'status': status(store)}
+        review_path = store / report['report_file']
+        review_report = {'source': {k: selected['source'].get(k) for k in
+                         ('title', 'creator', 'published_at', 'source_id')},
+                         'input_kind': plan['input_kind'], 'packet_hash': packet['packet_hash'],
+                         'evidence': packet['analysis']['ideas'], 'review': plan['review'],
+                         'feedback': plan['feedback'], 'canonical': False, 'review_required': True,
+                         'verification': 'Source attribution only; selected excerpts do not independently verify claims.'}
+        if review_path.exists():
+            if read_json(review_path) != review_report:
+                raise ValueError('Review report conflict')
+        else:
+            atomic_json_create(review_path, review_report)
+        atomic_json_create(receipt, report)
+        return report
+
+
 def select_message(source, message_id, account_ref, instruction_ref, store, token_file):
     """Use the recovered exact-sender selector with external, existing OAuth only.
 
@@ -213,6 +302,11 @@ def main():
     run.add_argument('--plan', type=Path, required=True)
     run.add_argument('--input', type=Path, action='append', required=True)
     run.add_argument('--confirm-review-only', action='store_true', required=True)
+    review = sub.add_parser('review-one', help='Review one selected real or synthetic source without inventing corroboration')
+    review.add_argument('--store', type=Path, required=True)
+    review.add_argument('--plan', type=Path, required=True)
+    review.add_argument('--input', type=Path, required=True)
+    review.add_argument('--confirm-review-only', action='store_true', required=True)
     select = sub.add_parser('select', help='Stage one exact approved Gmail message; existing OAuth only')
     for name in ('source', 'id', 'account-ref', 'instruction-ref', 'token-file', 'store'):
         select.add_argument('--' + name, required=True)
@@ -223,6 +317,8 @@ def main():
         result = run_cycle(plan, inputs, args.store)
     elif args.command == 'run':
         result = run_cycle(read_json(args.plan), [read_json(p) for p in args.input], args.store)
+    elif args.command == 'review-one':
+        result = run_single_review(read_json(args.plan), read_json(args.input), args.store)
     else:
         path = select_message(args.source, args.id, args.account_ref, args.instruction_ref,
                               args.store, args.token_file)

@@ -20,7 +20,8 @@ import tempfile
 import unittest
 
 from discovery_review import digest
-from learning_cycle import MAX_BYTES, demo_inputs, private_directory, read_json, run_cycle
+from learning_cycle import (MAX_BYTES, demo_inputs, private_directory, read_json,
+                            run_cycle, prepare_single_review, run_single_review)
 from learning_pipeline import extract_envelope
 from review_store import atomic_json_create
 
@@ -46,9 +47,9 @@ def validate_task(task):
             or not all(isinstance(d, str) for d in dependencies)
             or len(set(dependencies)) != len(dependencies)):
         raise ValueError('Dependencies must be a bounded list of unique task IDs')
-    actions = {'coding': 'propose_edit', 'research': 'extract',
-               'testing': 'unittest', 'intelligence': 'cycle'}
-    return task['action'] == actions[task['role']]
+    actions = {'coding': ('propose_edit',), 'research': ('extract', 'prepare_review'),
+               'testing': ('unittest',), 'intelligence': ('cycle', 'review_single')}
+    return task['action'] in actions[task['role']]
 
 
 def guard(root):
@@ -112,9 +113,22 @@ def execute(task, root):
         patch = ''.join(difflib.unified_diff(original.splitlines(True), proposed.splitlines(True),
                                             fromfile='a/' + name, tofile='b/' + name))
         (root / 'proposal.patch').write_text(patch)
+        (root / 'proposed.py').write_text(proposed)
         return {'proposal': 'proposal.patch', 'applied_to_repository': False,
-                'patch_sha256': hashlib.sha256(patch.encode()).hexdigest()}
+                'patch_sha256': hashlib.sha256(patch.encode()).hexdigest(),
+                'target': name, 'original_sha256': payload['expected_sha256'],
+                'proposal_file': 'proposed.py', 'proposed_sha256': hashlib.sha256(proposed.encode()).hexdigest()}
     if role == 'research':
+        if task['action'] == 'prepare_review':
+            if set(payload) != {'plan', 'selected'}:
+                raise ValueError('Research review requires explicit plan and selected evidence')
+            envelope = prepare_single_review(payload['plan'], payload['selected'])
+            handoff = {'schema': 'diamond.review-handoff/1', 'plan': payload['plan'], 'selected': payload['selected']}
+            atomic_json_create(root / 'handoff.json', handoff)
+            return {'handoff_file': 'handoff.json', 'handoff_hash': digest(handoff),
+                    'input_kind': payload['plan']['input_kind'],
+                    'reviewed_spans': len(envelope['analysis']['ideas']),
+                    'evidence_state': 'UNRESOLVED', 'canonical': False}
         if (set(payload) != {'selected', 'projects', 'reviewed_at', 'input_kind'}
                 or payload['input_kind'] not in ('synthetic', 'real')
                 or not 1 <= len(payload['selected']) <= 8):
@@ -133,6 +147,8 @@ def execute(task, root):
     if role == 'intelligence':
         if set(payload) != {'plan', 'selected'}:
             raise ValueError('Intelligence requires explicit cycle plan and selected inputs')
+        if task['action'] == 'review_single':
+            return run_single_review(payload['plan'], payload['selected'], root / 'reviews')
         return run_cycle(payload['plan'], payload['selected'], root / 'reviews')
     if set(payload) != {'pattern'} or not re.fullmatch(r'test_[A-Za-z0-9_*]+\.py', payload['pattern']):
         raise ValueError('Testing requires a bounded unittest discovery pattern')
@@ -195,7 +211,6 @@ def coordinate(tasks, source, destination, timeout=30):
         (root / 'tmp').mkdir(mode=0o700)
         for name, data in snapshot.items():
             (root / 'src' / name).write_bytes(data)
-        atomic_json_create(root / 'task.json', task)
         report = {'task_id': task['id'], 'role': task['role'], 'permissions': PERMISSIONS,
                   'source_fingerprint': fingerprint, 'canonical': False, 'review_required': True,
                   'worker_started': False}
@@ -207,6 +222,17 @@ def coordinate(tasks, source, destination, timeout=30):
         elif not validate_task(task):
             report.update(state='needs_specialist', escalation='Unsupported capability; supervisor must assign a specialist explicitly')
         else:
+            # Transfer only specific, hash-checked artifacts from successful prerequisites.
+            try:
+                task = resolve_handoff(task, reports, run_root, root, snapshot)
+                if task['role'] == 'testing' and task.get('_tested_proposal'):
+                    report['tested_proposal'] = task.pop('_tested_proposal')
+                atomic_json_create(root / 'task.json', task)
+            except (ValueError, KeyError, OSError, TypeError):
+                report.update(state='failed', escalation='Invalid or stale prerequisite artifact; specialist review required')
+                atomic_json_create(root / 'report.json', report)
+                reports.append(report)
+                continue
             # Explicitly no inherited environment, credentials, proxy or user-site hooks.
             env = {'PATH': os.defpath, 'PYTHONDONTWRITEBYTECODE': '1',
                    'TMPDIR': str(root / 'tmp'), 'LANG': 'C.UTF-8', 'DIAMOND_WORKER': '1'}
@@ -242,6 +268,50 @@ def coordinate(tasks, source, destination, timeout=30):
                'run_directory': str(run_root), 'tasks': reports, 'canonical': False}
     atomic_json_create(run_root / 'summary.json', summary)
     return summary
+
+
+def resolve_handoff(task, reports, run_root, root, snapshot):
+    """Fixed handoff types only; no worker-controlled file paths or commands."""
+    task = json.loads(json.dumps(task))
+    payload = task['payload']
+
+    def prior(task_id, role):
+        if task_id not in task.get('depends_on', []):
+            raise ValueError('Artifact transfer requires an explicit prerequisite')
+        result = next((r for r in reports if r['task_id'] == task_id), None)
+        if not result or result['state'] != 'completed' or result['role'] != role:
+            raise ValueError('Successful matching prerequisite required')
+        return result['result'], run_root / task_id
+
+    if task['role'] == 'intelligence' and task['action'] == 'review_single' and 'from_task' in payload:
+        if set(payload) != {'from_task'}:
+            raise ValueError('Do not mix handoff and inline evidence')
+        result, prior_root = prior(payload['from_task'], 'research')
+        handoff = read_json(prior_root / 'handoff.json')
+        if (result.get('handoff_file') != 'handoff.json' or digest(handoff) != result.get('handoff_hash')
+                or set(handoff) != {'schema', 'plan', 'selected'} or handoff['schema'] != 'diamond.review-handoff/1'):
+            raise ValueError('Research handoff integrity check failed')
+        task['payload'] = {k: handoff[k] for k in ('plan', 'selected')}
+    if task['role'] == 'testing' and 'proposal_from' in payload:
+        if set(payload) != {'pattern', 'proposal_from'}:
+            raise ValueError('Testing proposal requires only pattern and prerequisite')
+        result, prior_root = prior(payload['proposal_from'], 'coding')
+        target = result.get('target')
+        if not isinstance(target, str) or not re.fullmatch(r'[A-Za-z0-9_]+\.py', target) or target not in snapshot:
+            raise ValueError('Invalid proposal target')
+        path = prior_root / 'proposed.py'
+        if result.get('proposal_file') != 'proposed.py' or path.is_symlink() or path.stat().st_size > MAX_BYTES:
+            raise ValueError('Bounded regular proposal required')
+        data = path.read_bytes()
+        if (hashlib.sha256(data).hexdigest() != result.get('proposed_sha256')
+                or hashlib.sha256(snapshot[target]).hexdigest() != result.get('original_sha256')):
+            raise ValueError('Coding proposal integrity check failed')
+        ast.parse(data)
+        (root / 'src' / target).write_bytes(data)
+        task['payload'] = {'pattern': payload['pattern']}
+        task['_tested_proposal'] = {'target': target, 'sha256': result['proposed_sha256'],
+                                    'applied_to_repository': False}
+    return task
 
 
 def main():

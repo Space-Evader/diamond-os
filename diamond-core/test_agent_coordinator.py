@@ -95,6 +95,52 @@ class CoordinatorTests(unittest.TestCase):
             self.run_tasks([task])
         self.assertFalse(self.destination.exists())
 
+    def test_research_handoff_drives_single_source_intelligence(self):
+        from test_real_learning import fixture
+        from gmail_import import selected_envelope
+        selection, metadata, full, plan = fixture()
+        research = self.task('research', 'prepare_review', {
+            'plan': plan, 'selected': selected_envelope(selection, metadata, full)})
+        intelligence = self.task('intelligence', 'review_single', {'from_task': 'research'})
+        intelligence['depends_on'] = ['research']
+        result = self.run_tasks([research, intelligence])
+        self.assertEqual([t['state'] for t in result['tasks']], ['completed', 'completed'])
+        self.assertEqual(result['tasks'][1]['result']['status']['current_sources'], 1)
+        self.assertEqual(result['tasks'][1]['result']['status']['canonical_records'], 0)
+        self.assertNotIn(full['payload']['body']['content'], json.dumps(result))
+
+    def test_testing_worker_executes_proposed_code_in_its_own_snapshot(self):
+        original = (self.source / 'universe.py').read_bytes()
+        before = 'Canonical Diamond Mind Universe taxonomy used by Diamond Core.'
+        after = 'Taxonomy proposed by the bounded coding worker.'
+        (self.source / 'test_proposal.py').write_text(
+            'import unittest,universe\nclass Proposal(unittest.TestCase):\n'
+            ' def test_proposed(self): self.assertIn("Taxonomy proposed by the bounded coding worker.",universe.__doc__)\n')
+        coding = self.task('coding', 'propose_edit', {'path': 'universe.py',
+            'expected_sha256': hashlib.sha256(original).hexdigest(), 'before': before, 'after': after})
+        testing = self.task('testing', 'unittest', {'pattern': 'test_proposal.py', 'proposal_from': 'coding'})
+        testing['depends_on'] = ['coding']
+        result = self.run_tasks([coding, testing])
+        self.assertEqual([t['state'] for t in result['tasks']], ['completed', 'completed'])
+        self.assertEqual(result['tasks'][1]['result']['tests'], 1)
+        self.assertFalse(result['tasks'][1]['tested_proposal']['applied_to_repository'])
+        self.assertEqual((self.source / 'universe.py').read_bytes(), original)
+
+    def test_unapproved_or_tampered_artifact_is_not_dispatched(self):
+        from agent_coordinator import resolve_handoff
+        run_root = self.root / 'artifacts'
+        prior = run_root / 'research'
+        prior.mkdir(parents=True)
+        (prior / 'handoff.json').write_text('{"schema":"diamond.review-handoff/1","plan":{},"selected":{}}')
+        reports = [{'task_id': 'research', 'role': 'research', 'state': 'completed',
+                    'result': {'handoff_file': 'handoff.json', 'handoff_hash': '0' * 64}}]
+        task = self.task('intelligence', 'review_single', {'from_task': 'research'})
+        with self.assertRaisesRegex(ValueError, 'prerequisite'):
+            resolve_handoff(task, reports, run_root, self.root, {})
+        task['depends_on'] = ['research']
+        with self.assertRaisesRegex(ValueError, 'integrity'):
+            resolve_handoff(task, reports, run_root, self.root, {})
+
     def test_failing_tests_are_reported_as_failure(self):
         (self.source / 'test_failure.py').write_text(
             'import unittest\nclass Fails(unittest.TestCase):\n'
