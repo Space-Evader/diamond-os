@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "status": "founder_review",
+  "canonical": false,
+  "observed_on": "2026-10-25",
+  "retrieval_method": "public website search-service retrieval",
+  "verification_limit": "Indexed text; crawl age varies. No live checkout, analytics, sales, or inventory verification.",
+  "observations": [
+    {
+      "id": "hatsrx-production-consistency",
+      "kind": "potential_copy_inconsistency",
+      "confidence": "provisional",
+      "summary": "The About narrative and product pages describe made-to-order production; About FAQ and home copy also claim limited quantities. Founder review should establish which scarcity claims apply to which designs.",
+      "sources": [
+        {"url": "https://www.hatsrx.com/blank", "crawl_age_at_observation": "today"},
+        {"url": "https://www.hatsrx.com/", "crawl_age_at_observation": "4 days"},
+        {"url": "https://www.hatsrx.com/product-page/crown-state-snapback-classic", "crawl_age_at_observation": "today"}
+      ],
+      "action": "Review consistency before approving any copy change; no new copy or site changes have been made."
+    },
+    {
+      "id": "hatsrx-product-selection-friction",
+      "kind": "experiment_hypothesis",
+      "confidence": "provisional",
+      "summary": "Beautiful Mind and Sea Heart require White and U production selections. Their existing ordering explanation clarifies these values. These choices may add buying friction; no functional defect or conversion impact was established.",
+      "sources": [
+        {"url": "https://www.hatsrx.com/product-page/beautiful-mind-snapback-hat", "crawl_age_at_observation": "4 days"},
+        {"url": "https://www.hatsrx.com/product-page/sea-heart-snapback-hat", "crawl_age_at_observation": "6 days"}
+      ],
+      "action": "Measure product-to-cart progression before proposing any product-option change."
+    }
+  ],
+  "product_provenance": [
+    {"key": "beautiful-mind", "rx_id": "HXRX-BEAUTYMND-ARTCAP", "url": "https://www.hatsrx.com/product-page/beautiful-mind-snapback-hat", "crawl_age_at_observation": "4 days"},
+    {"key": "sea-heart", "rx_id": "HXRX-SEAHEART-ARTCAP", "url": "https://www.hatsrx.com/product-page/sea-heart-snapback-hat", "crawl_age_at_observation": "6 days"},
+    {"key": "psily", "rx_id": "HXRX-PSILY-LOVE", "url": "https://www.hatsrx.com/product-page/p-s-i-love-you-snapback", "crawl_age_at_observation": "6 days"},
+    {"key": "crown-state", "rx_id": "HXRX-CROWNSTATE-CORE", "url": "https://www.hatsrx.com/product-page/crown-state-snapback-classic", "crawl_age_at_observation": "today"}
+  ],
+  "experiment": {
+    "status": "prepared_not_launched",
+    "hypothesis": "A relevant product destination may reduce discovery steps compared with the home page.",
+    "scope": "Choose one to three existing founder-approved hats and creative assets; use tagged direct-product links in a founder-approved channel.",
+    "measurements": ["campaign product visits", "add-to-cart events", "checkout starts", "purchases"],
+    "evaluation": "Use the same attribution window, channel, offer and comparable creative. Report raw counts and available funnel rates. Insufficient traffic or missing attribution is inconclusive.",
+    "analytics_status": "Not inspected; UTM parameters alone collect no data.",
+    "performance_results": null,
+    "spend": "No spending authorized or performed."
+  },
+  "excluded_as_stale": ["One-to-two-month-old indexed category prices", "Indexed membership terms", "Indexed shipping terms"],
+  "boundaries": ["No outreach", "No website changes", "No commercial setting changes", "No artwork changes", "No canonical memory promotion"]
+}

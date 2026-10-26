@@ -1,0 +1,10 @@
+__pycache__/
+*.py[cod]
+.env
+.env.*
+credentials*.json
+token*.json
+discovery_reviews/
+private_intake/
+private_*.json
+*.log
