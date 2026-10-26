@@ -48,7 +48,7 @@ def validate_task(task):
             or len(set(dependencies)) != len(dependencies)):
         raise ValueError('Dependencies must be a bounded list of unique task IDs')
     actions = {'coding': ('propose_edit',), 'research': ('extract', 'prepare_review'),
-               'testing': ('unittest',), 'intelligence': ('cycle', 'review_single')}
+               'testing': ('unittest', 'verify_cycle_cli'), 'intelligence': ('cycle', 'review_single')}
     return task['action'] in actions[task['role']]
 
 
@@ -69,6 +69,9 @@ def guard(root):
                        and Path(command[0]).resolve() == Path(sys.executable).resolve()
                        and Path(command[1]).resolve() == root / 'src' / 'growth_links.py'
                        and command[2] in ('link', 'list'))
+            allowed = allowed or list(command) == [
+                sys.executable, '-B', str(root / 'src' / 'learning_cycle.py'),
+                'demo', '--store', str(root / 'behavioral-reviews')]
             if not allowed:
                 raise PermissionError('Subprocess outside fixed worker capabilities')
         if event == 'open':
@@ -150,6 +153,11 @@ def execute(task, root):
         if task['action'] == 'review_single':
             return run_single_review(payload['plan'], payload['selected'], root / 'reviews')
         return run_cycle(payload['plan'], payload['selected'], root / 'reviews')
+    if task['action'] == 'verify_cycle_cli':
+        if payload:
+            raise ValueError('Behavioral verification accepts no arbitrary command or payload')
+        from verification_gate import verify_cycle_cli
+        return verify_cycle_cli(root)
     if set(payload) != {'pattern'} or not re.fullmatch(r'test_[A-Za-z0-9_*]+\.py', payload['pattern']):
         raise ValueError('Testing requires a bounded unittest discovery pattern')
     suite = unittest.defaultTestLoader.discover(str(root / 'src'), pattern=payload['pattern'])
