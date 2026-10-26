@@ -5,6 +5,9 @@ OAuth may update token.json when Google credentials need refreshing.
 """
 import argparse
 import base64
+import codecs
+from email import policy as email_policy
+from email.message import Message
 import hashlib
 import json
 import re
@@ -54,8 +57,28 @@ def message_body(payload):
             if isinstance(text_content, str) and text_content:
                 results.append(text_content)
             elif data:
-                raw = base64.urlsafe_b64decode(data + '=' * (-len(data) % 4))
-                results.append(raw.decode('utf-8', errors='replace'))
+                try:
+                    raw = base64.b64decode(data + '=' * (-len(data) % 4),
+                                           altchars=b'-_', validate=True)
+                    declared = [h.get('value', '') for h in part.get('headers', [])
+                                if h.get('name', '').lower() == 'content-type']
+                    if len(declared) > 1:
+                        raise ValueError('Ambiguous MIME Content-Type')
+                    header = Message(policy=email_policy.default)
+                    if declared:
+                        header['Content-Type'] = declared[0]
+                        if header['Content-Type'].defects:
+                            raise ValueError('Malformed MIME Content-Type')
+                    params = header.get_params() or []
+                    charsets = [value for key, value in params if key.lower() == 'charset']
+                    if len(charsets) > 1 or any(not isinstance(c, str) or not c.strip() for c in charsets):
+                        raise ValueError('Malformed MIME charset')
+                    charset = charsets[0] if charsets else 'utf-8'
+                    # Lookup and strict decoding must succeed before any review/hash writes.
+                    codecs.lookup(charset)
+                    results.append(raw.decode(charset, errors='strict'))
+                except (LookupError, UnicodeError, ValueError, TypeError) as exc:
+                    raise ValueError('Invalid plain-text MIME encoding; no source staged') from exc
         for child in part.get('parts') or []:
             visit(child)
     visit(payload)

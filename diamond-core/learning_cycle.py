@@ -166,7 +166,7 @@ def demo_inputs():
 
 
 def prepare_single_review(plan, selected):
-    """Use existing extraction, then retain only explicitly reviewed exact spans.
+    """Validate source and operator-selected spans independently of automatic extraction.
 
     One message can motivate a hypothesis, never cross-source corroboration.
     Source instructions cannot supply or alter this operator-owned plan.
@@ -186,7 +186,7 @@ def prepare_single_review(plan, selected):
         'schema': 'diamond.cycle/1', 'synthesis': {'relation': 'analogy',
         'hypothesis': review['hypothesis'], 'challenge': review['challenge'], 'next_step': review['application']}})
     envelope = extract_envelope(selected['source'], selected['approval'], plan['reviewer'],
-                                plan['reviewed_at'], plan['projects'])
+                                plan['reviewed_at'], plan['projects'], explicit_spans=plan['evidence_spans'])
     spans, ideas = [], []
     if not isinstance(plan['evidence_spans'], list) or not 1 <= len(plan['evidence_spans']) <= 3:
         raise ValueError('Select one to three exact evidence spans')
@@ -205,7 +205,7 @@ def prepare_single_review(plan, selected):
                       'kind': 'provisional_interpretation', 'evidence_state': 'UNRESOLVED',
                       'excerpt': excerpt, 'locator': f"characters:{span['start']}:{span['end']}"})
     envelope['source']['evidence_spans'] = spans
-    envelope['source']['extraction_method'] = 'bounded-extractive-lines/2 + operator-selected-character-spans/1'
+    envelope['source']['extraction_method'] = 'operator-selected-character-spans/1'
     envelope['analysis']['ideas'] = ideas
     envelope['analysis']['discovery'].update(
         connection=review['hypothesis'], challenge=review['challenge'], next_step=review['application'],

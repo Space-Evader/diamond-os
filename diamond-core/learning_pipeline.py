@@ -74,7 +74,7 @@ def normalized_hash(text):
     return digest(' '.join(text.casefold().split()))
 
 
-def extract_envelope(source, approval, analyst, reviewed_at, projects, max_ideas=3):
+def extract_envelope(source, approval, analyst, reviewed_at, projects, max_ideas=3, *, explicit_spans=None):
     """Select exact short text spans as unverified publisher assertions."""
     validate_source(source, approval)
     validate_registered_source(source, source.get('source_id'))
@@ -90,7 +90,7 @@ def extract_envelope(source, approval, analyst, reviewed_at, projects, max_ideas
     if len(content) > 1_000_000:
         raise ValueError('Source exceeds the bounded one-million-character intake limit')
     candidates, seen = [], set()
-    for span_start, original in text_spans(content):
+    for span_start, original in (text_spans(content) if explicit_spans is None else []):
         line = original.strip()
         if (len(line) < 45 or not re.search(r'[A-Za-z]{3}', line)
                 or is_boilerplate(line)
@@ -109,6 +109,21 @@ def extract_envelope(source, approval, analyst, reviewed_at, projects, max_ideas
         # This is a deterministic formatting heuristic, not a truth judgment.
         score = 3 * bool(ASSERTION.search(line)) + bool(line.endswith(('.', '!', '?')))
         candidates.append((excerpt, start, score))
+    if explicit_spans is not None:
+        if not isinstance(explicit_spans, list) or not 1 <= len(explicit_spans) <= 3:
+            raise ValueError('Select one to three exact evidence spans')
+        for span in explicit_spans:
+            if (not isinstance(span, dict) or set(span) != {'start', 'end'}
+                    or type(span['start']) is not int or type(span['end']) is not int
+                    or not 0 <= span['start'] < span['end'] <= len(content)
+                    or span['end'] - span['start'] > 240):
+                raise ValueError('Bounded source character offsets required')
+            start, end = span['start'], span['end']
+            excerpt = content[start:end]
+            if not excerpt.strip() or any(start < pos + len(text) and pos < end
+                                          for text, pos, _ in candidates):
+                raise ValueError('Select distinct nonempty evidence spans')
+            candidates.append((excerpt, start, 0))
     if not candidates:
         raise ValueError('No suitable text spans; select a permitted excerpt for manual review')
     candidates = sorted(candidates, key=lambda item: (-item[2], item[1]))[:max_ideas]
