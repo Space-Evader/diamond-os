@@ -1,0 +1,130 @@
+{
+  "checkpoint": "DC-20261026-01",
+  "original_files": [
+    {
+      "original": "HATSRX_GROWTH_REVIEW.md",
+      "packaged": "HATSRX_GROWTH_REVIEW.md",
+      "sha256": "f04c5049a796e13a747f78676af177f28abc24ac8b0d26ddc413e6d7af260def",
+      "content_changed": false
+    },
+    {
+      "original": "README_ACCELERATION.md",
+      "packaged": "README_ACCELERATION.md",
+      "sha256": "1da11daa0d59669a2c41b6b1f476845b9c772a52a6696e26b4c315f75d981e9a",
+      "content_changed": false
+    },
+    {
+      "original": "core_intake(2).py",
+      "packaged": "core_intake.py",
+      "sha256": "130f0d7a320e701ea2f923e504cf135a46c1ebc32d5160c5a3c99dcaf583b1a1",
+      "content_changed": false
+    },
+    {
+      "original": "discovery_review(1).py",
+      "packaged": "discovery_review.py",
+      "sha256": "ce2534553004fd516829f5fe180d6afa2a81982bd45c62759e6c8343842377c9",
+      "content_changed": false
+    },
+    {
+      "original": "download",
+      "packaged": ".gitignore",
+      "sha256": "4ca949308e668b13ce450e5acb1860599aee39d3b6ecee37d7bebd505707b635",
+      "content_changed": false
+    },
+    {
+      "original": "gmail_review_select(2).py",
+      "packaged": "gmail_review_select.py",
+      "sha256": "ea67c9280e12e8005a0687f5e8decb26acc395a87ca75a32f9a113e1568d18bf",
+      "content_changed": false
+    },
+    {
+      "original": "growth_links.py",
+      "packaged": "growth_links.py",
+      "sha256": "6d484fbbc55c5d41d3f2f1a4a80ed59207718b873ef954886ff7c3839ae86120",
+      "content_changed": false
+    },
+    {
+      "original": "hatsrx_growth_review.json",
+      "packaged": "hatsrx_growth_review.json",
+      "sha256": "6655222eb60a628a9a44a7993ddb5e568857ccadfe16189c4c623a16f3818abe",
+      "content_changed": false
+    },
+    {
+      "original": "learning_pipeline.py",
+      "packaged": "learning_pipeline.py",
+      "sha256": "5322f09ab0c09db87a983fd9dd088d20bcef36e9e344adb05a4ec28c348c03eb",
+      "content_changed": false
+    },
+    {
+      "original": "make_demo(1).py",
+      "packaged": "make_demo.py",
+      "sha256": "7503f97e629012db62a2a7296bc73eb8e3638bd36339c472f29ff46e618026a5",
+      "content_changed": false
+    },
+    {
+      "original": "review_store.py",
+      "packaged": "review_store.py",
+      "sha256": "9d25d71c988716ecad9b512577434c4dea188b6a79cd54830f746767ab3b92bc",
+      "content_changed": false
+    },
+    {
+      "original": "source_policy.py",
+      "packaged": "source_policy.py",
+      "sha256": "f64a1cfbdc192635768e874de163f7ce7d27e49129c570303ad54ea328e9847a",
+      "content_changed": false
+    },
+    {
+      "original": "test_acceleration_independent.py",
+      "packaged": "test_acceleration_independent.py",
+      "sha256": "aebc73fdc31128f3a9fe445c69df95da35354c221b0f34a70b1d2ffaaa5174c8",
+      "content_changed": false
+    },
+    {
+      "original": "test_approved_gmail.py",
+      "packaged": "test_approved_gmail.py",
+      "sha256": "39b6818a4fcfc72c7ff095e40af6a860a7f9e3085622869915eb5b44ab54ace9",
+      "content_changed": false
+    },
+    {
+      "original": "test_audit_safety(1).py",
+      "packaged": "test_audit_safety.py",
+      "sha256": "acd841c3aa2dbad3968ca223f15e335d71085404b88c95525f608701a4a4ac51",
+      "content_changed": false
+    },
+    {
+      "original": "test_discovery_review(1).py",
+      "packaged": "test_discovery_review.py",
+      "sha256": "fa297295ba7d56756a84255916d7a375cbbf0d548102379351bafaedd057fcc0",
+      "content_changed": false
+    },
+    {
+      "original": "test_growth_links.py",
+      "packaged": "test_growth_links.py",
+      "sha256": "745d6feb719d3d2395d3bec89b3f6eed0836ae78f46945c2bf203a0aff2f3a8e",
+      "content_changed": false
+    },
+    {
+      "original": "test_learning_quality.py",
+      "packaged": "test_learning_quality.py",
+      "sha256": "0b31a8b2fdea397acafdb3cdbe00e5bd96d76971d32b80c089b0680c92dcd3b1",
+      "content_changed": false
+    },
+    {
+      "original": "test_storage_hardening.py",
+      "packaged": "test_storage_hardening.py",
+      "sha256": "77c95ae7b20a9d5eee5b38418ab5c17a403e8660aac8ccb473cf49dbf4e4a73e",
+      "content_changed": false
+    },
+    {
+      "original": "universe(1).py",
+      "packaged": "universe.py",
+      "sha256": "5db3810f41547ff26f2d68ba010a56344b923dc7cc333814020d2007627d7269",
+      "content_changed": false
+    }
+  ],
+  "added_documents": [
+    "START_HERE.md",
+    "OPERATING_PLAN.md",
+    "CODEX_HANDOFF.md"
+  ]
+}
