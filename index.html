@@ -1,6 +1,8 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Pinky's Space — Diamond OS</title>
 <style>
 body {
@@ -8,7 +10,7 @@ body {
   color: white;
   font-family: Arial;
   text-align: center;
-  padding: 50px;
+  padding: clamp(20px, 5vw, 50px);
 }
 
 h1 {
@@ -44,6 +46,41 @@ h1 {
 .card a:hover {
   text-decoration: underline;
 }
+
+.universe-links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+  max-width: 800px;
+  margin: 32px auto;
+}
+
+.universe-links a {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px 18px;
+  border: 1px solid #555;
+  border-radius: 12px;
+  color: #7dd3fc;
+  text-decoration: none;
+}
+
+.universe-links a span {
+  color: #ddd;
+  font-size: 0.85em;
+}
+
+.universe-links a:hover {
+  border-color: #7dd3fc;
+  text-decoration: underline;
+}
+
+.universe-links a:focus-visible {
+  outline: 3px solid #7dd3fc;
+  outline-offset: 4px;
+}
 </style>
 
 </head>
@@ -51,7 +88,13 @@ h1 {
 <body>
 
 <h1>💎 Pinky's Space</h1>
-<p>The Creative Hub of Diamond Minds</p>
+<p>A creative hub within Diamond Mind. Founded by Magic × Wizard.</p>
+
+<nav class="universe-links" aria-label="Explore the creative universe">
+  <a href="https://pinkysspace.com/">Pinky's Space<span>Art &amp; community</span></a>
+  <a href="https://www.hatsrx.com/">HatsRx<span>Wearable art</span></a>
+  <a href="https://shop.tennismoon.com/">TennisMoon shop<span>Tennis culture &amp; commerce</span></a>
+</nav>
 
 <div class="section">
   <h2>🧢 HatsRx</h2>
